@@ -58,6 +58,20 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
   const isInView = useInView(ref, { once: true });
 
   const [revealCount, setRevealCount] = useState<number>(0);
+  const [renderedScrambleChars, setRenderedScrambleChars] = useState<string[]>(
+    text ? generateGibberishPreservingSpaces(text, charset).split("") : [],
+  );
+  const [prevText, setPrevText] = useState(text);
+
+  if (text !== prevText) {
+    setPrevText(text);
+    setRevealCount(0);
+    const initial = text
+      ? generateGibberishPreservingSpaces(text, charset).split("")
+      : [];
+    setRenderedScrambleChars(initial);
+  }
+
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const lastFlipTimeRef = useRef<number>(0);
@@ -68,14 +82,13 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
   useEffect(() => {
     if (!isInView) return;
 
-    // Reset state for a fresh animation whenever dependencies change
+    // Reset refs for a fresh animation whenever dependencies change
     const initial = text
       ? generateGibberishPreservingSpaces(text, charset)
       : "";
     scrambleCharsRef.current = initial.split("");
     startTimeRef.current = performance.now();
     lastFlipTimeRef.current = startTimeRef.current;
-    setRevealCount(0);
 
     let isCancelled = false;
 
@@ -109,6 +122,7 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
           }
         }
         lastFlipTimeRef.current = now;
+        setRenderedScrambleChars([...scrambleCharsRef.current]);
       }
 
       animationFrameRef.current = requestAnimationFrame(update);
@@ -139,7 +153,7 @@ export const EncryptedText: React.FC<EncryptedTextProps> = ({
           ? char
           : char === " "
             ? " "
-            : (scrambleCharsRef.current[index] ??
+            : (renderedScrambleChars[index] ??
               generateRandomCharacter(charset));
 
         return (

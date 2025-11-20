@@ -9,7 +9,7 @@ export function Partners() {
             Trusted by Leading Institutions
           </h2>
           <p className="text-gray-400">
-            Feel confident knowing you're partnering with a trusted OTC desk that prioritizes security, compliance, and exceptional service.
+            Feel confident knowing you&apos;re partnering with a trusted OTC desk that prioritizes security, compliance, and exceptional service.
           </p>
         </div>
         {/** Logos of companies that partner with us */}
