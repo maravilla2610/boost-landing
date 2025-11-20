@@ -21,14 +21,13 @@ const navItems = [
 
 export const NavigationBar = () => {
   const [isOpen, setIsOpen] = useState(false);
-
   return (
     <Navbar>
       {/* Desktop Navigation */}
       <NavBody>
         <NavbarLogo />
         <NavItems items={navItems} />
-        <NavbarButton href="#" variant="dark">
+        <NavbarButton href="https://register.boostotc.com" variant="dark">
           Get Started Now
         </NavbarButton>
       </NavBody>
@@ -53,7 +52,7 @@ export const NavigationBar = () => {
               {item.name}
             </a>
           ))}
-          <NavbarButton href="#" variant="gradient" className="w-full">
+          <NavbarButton href="https://register.boostotc.com" variant="gradient" className="w-full">
             Get Started Now
           </NavbarButton>
         </MobileNavMenu>
