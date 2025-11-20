@@ -12,7 +12,7 @@ const cySans = localFont({
       style: "normal",
     },
     {
-      path: "../public/fonts/Cy-Semibold.woff2",
+      path: "../public/fonts/Cy-SemiBold.woff2",
       weight: "600",
       style: "normal",
     },
