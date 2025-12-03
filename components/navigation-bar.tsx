@@ -52,7 +52,7 @@ export const NavigationBar = () => {
               {item.name}
             </a>
           ))}
-          <NavbarButton href="https://register.boostotc.com" variant="gradient" className="w-full">
+          <NavbarButton href="/login" variant="dark" className="w-full">
             Get Started Now
           </NavbarButton>
         </MobileNavMenu>
