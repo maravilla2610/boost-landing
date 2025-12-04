@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Plus, X } from "lucide-react"
 import { User } from "@/lib/entities/user"
 import { CompanyFormData as Company } from "@/lib/entities/company"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface DashboardViewProps {
   companies: Company[],
@@ -21,11 +22,11 @@ export function DashboardView({ companies, user }: DashboardViewProps) {
 
   if (showRegistration) {
     return (
-      <div className="relative min-h-screen w-full">
-        <div className="flex min-h-screen items-center justify-center py-12">
+      <ScrollArea className="h-[calc(100vh-4rem)] w-full">
+        <div className="w-full py-12 px-4">
           <RegistrationForm user={user} setShowRegistration={setShowRegistration} onSuccess={() => router.refresh()} />
         </div>
-      </div>
+      </ScrollArea>
     )
   }
 

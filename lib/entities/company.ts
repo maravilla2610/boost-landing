@@ -36,7 +36,7 @@ export const companySchema = z.object({
     kyc: z.file().optional(),
     manifestacion: z.file().optional(),
     firma: z.file().optional(),
-    user_id: z.string().min(1, 'User ID is required'),
+    user_id: z.number().min(1, 'User ID is required'),
     origen: z.enum([
         'boost',
         'bitrus',
@@ -84,7 +84,7 @@ export const personSchema = z.object({
     kyc: z.file().optional(),
     manifestacion: z.file().optional(),
     firma: z.file().optional(),
-    user_id: z.string().min(1, 'User ID is required'),
+    user_id: z.number().min(1, 'User ID is required'),
     origen: z.enum([
         'boost',
         'bitrus',

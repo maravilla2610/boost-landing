@@ -3,8 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { CompanyFormData as Company } from '@/lib/entities/company'
 
-export async function getCompanies(userId: string | null): Promise<Company[]> {
-    console.log('Getting companies for userId:', userId)
+export async function getCompanies(userId: number | null): Promise<Company[]> {
     const supabase = await createClient()
 
     const { data, error } = await supabase

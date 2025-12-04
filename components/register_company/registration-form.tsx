@@ -23,7 +23,7 @@ export default function RegistrationForm({ user, setShowRegistration, onSuccess 
     const [formData, setFormData] = useState<Partial<CompanyFormData & PersonFormData>>({
         origen: "boost",
         moral_fisica: false,
-        user_id: user?.auth_id || "",
+        user_id: user?.id || undefined,
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(false);
@@ -76,7 +76,6 @@ export default function RegistrationForm({ user, setShowRegistration, onSuccess 
     };
 
     const validateStep = (fields: string[]) => {
-        console.log('Fields to validate:', fields);
         const newErrors: Record<string, string> = {};
         let isValid = true;
         const schema = formData.moral_fisica ? companySchema : personSchema;
