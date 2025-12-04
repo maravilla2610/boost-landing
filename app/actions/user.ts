@@ -17,9 +17,7 @@ export async function getUser(): Promise<User | null> {
     if (error) {
         console.error('Error fetching user:', error)
         return null
-    }
-    // parse data to User type
-    
+    }    
 
     return data as User | null
 }

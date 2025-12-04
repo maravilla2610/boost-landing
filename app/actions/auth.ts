@@ -2,11 +2,9 @@
 
 
 import { createClient } from '@/lib/supabase/server'
-import { headers } from 'next/headers'
 
 export async function login(prevState: { error?: string, message?: string } | null, formData: FormData) {
     const supabase = await createClient()
-    const origin = (await headers()).get('origin')
 
     const email = formData.get('email') as string
 
@@ -28,7 +26,7 @@ export async function login(prevState: { error?: string, message?: string } | nu
     const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-            emailRedirectTo: `${origin}/auth/callback`,
+            emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
         },
     })
 
