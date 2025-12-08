@@ -22,6 +22,16 @@ interface LoginFormProps extends React.ComponentProps<"div"> {
   mode?: "login" | "signup"
 }
 
+function openEmail(provider: "gmail" | "outlook") {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+  
+  if (provider === "gmail") {
+    window.open(isMobile ? "googlegmail://" : "https://mail.google.com", "_blank")
+  } else {
+    window.open(isMobile ? "ms-outlook://" : "https://outlook.live.com", "_blank")
+  }
+}
+
 export function LoginForm({
   className,
   ...props
@@ -56,7 +66,27 @@ export function LoginForm({
                 <div className="text-sm text-red-500 px-1">{state.error}</div>
               )}
               {state?.message && (
-                <div className="text-sm text-green-500 px-1">{state.message}</div>
+                <div className="flex flex-col gap-3">
+                  <div className="text-sm text-green-500 px-1">{state.message}</div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => openEmail("gmail")}
+                    >
+                      Open Gmail
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => openEmail("outlook")}
+                    >
+                      Open Outlook
+                    </Button>
+                  </div>
+                </div>
               )}
               <Field>
                 <Button type="submit" disabled={isPending}>
