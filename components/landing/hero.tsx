@@ -18,7 +18,7 @@ export const Hero = () => {
           containerClassName="rounded-full"
           className="text-white font-bold text-md px-10 py-5 "
           as="button"
-          onClick={() => window.location.href = "https://register.boostotc.com"}
+          onClick={() => window.location.href = "/login"}
         >
           Request a Quote
         </HoverBorderGradient>

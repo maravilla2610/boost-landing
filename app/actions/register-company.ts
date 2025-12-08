@@ -17,18 +17,19 @@ export async function registerCompany(formData: CompanyFormData | PersonFormData
                 });
 
             if (uploadError) {
-                console.error(`Error uploading ${key}:`, uploadError);
                 throw new Error(`Error uploading ${key}`);
             }
 
             processedData[key] = filePath;
         }
     }
+    delete processedData['direccion_fiscal'];
+    delete processedData['direccion_operativa'];
+    delete processedData['pais'];
 
     const { data, error } = await supabase.from('Company').insert(processedData)
 
     if (error) {
-        console.error('Error registering company:', error);
         throw new Error('Error registering company');
     }
 

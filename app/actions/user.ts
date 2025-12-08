@@ -15,7 +15,6 @@ export async function getUser(): Promise<User | null> {
         .single()
 
     if (error) {
-        console.error('Error fetching user:', error)
         return null
     }    
 

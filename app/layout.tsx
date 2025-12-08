@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { getUser } from "@/app/actions/user";
-import { AppSidebar } from "@/components/app-sidebar";
 
 const cySans = localFont({
   src: [
@@ -31,25 +29,17 @@ export const metadata: Metadata = {
   description: "Execute large-volume cryptocurrency trades with deep liquidity, competitive pricing, and white-glove service. Trusted OTC desk for institutions, funds, and high-net-worth individuals.",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getUser();
-
   return (
     <html lang="en" className="dark">
       <body
         className={`${cySans.variable} antialiased`}
       >
-        {user ? (
-          <AppSidebar user={user}>
-            {children}
-          </AppSidebar>
-        ) : (
-          children
-        )}
+        {children}
       </body>
     </html>
   );

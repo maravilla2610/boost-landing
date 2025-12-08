@@ -1,5 +1,18 @@
 import { z } from 'zod';
 
+export const direccion = z.object({
+    direccion: z.string().min(1, 'Address is required'),
+    colonia: z.string(),
+    ciudad: z.string(),
+    estado: z.string(),
+    pais: z.string(),
+    codigo_postal: z.string(),
+})
+
+export function direccion_completa(direccion_completa: z.infer<typeof direccion>) {
+    return `${direccion_completa.direccion}, ${direccion_completa.colonia}, ${direccion_completa.ciudad}, ${direccion_completa.estado}, ${direccion_completa.pais}, ${direccion_completa.codigo_postal}`;
+}
+
 export const companySchema = z.object({
     nombre_compañia: z.string().min(1, 'Company name is required'),
     nombre_legal_compañia: z.string().min(1, 'Legal name is required'),
@@ -9,14 +22,13 @@ export const companySchema = z.object({
     curp: z.string(),
     e_firma: z.string().optional(),
     no_sello: z.string().optional(),
-    direccion: z.string().min(1, 'Address is required'),
-    colonia: z.string(),
-    ciudad: z.string(),
-    estado: z.string(),
-    pais: z.string(),
-    codigo_postal: z.string(),
-    direccion_completa: z.string().optional(),
-    comprobante_domicilio: z.file(),
+    pais: z.string().min(1, 'Country is required'),
+    direccion_fiscal: direccion,
+    direccion_fiscal_completa: z.string().min(1, 'Complete fiscal address is required'),
+    direccion_operativa: direccion,
+    direccion_operativa_completa: z.string().min(1, 'Complete operational address is required'),
+    comprobante_domicilio_fiscal: z.file(),
+    comprobante_domicilio_operativo: z.file().optional(),
     correo: z.email('Invalid email address'),
     nombre_representante_legal: z.string().min(1, 'Legal representative name is required'),
     apellido_representante_legal: z.string().min(1, 'Legal representative surname is required'),
@@ -43,13 +55,16 @@ export const companySchema = z.object({
         'lite'
     ]),
     nacionalidad: z.string().optional(),
-    moral_fisica: z.boolean('Type must be boolean').optional(),
+    moral: z.boolean('Type must be boolean').optional(),
     giro_mercantil: z.string().min(1, 'Business activity is required'),
     telefono: z.string().optional(),
     origen_recursos: z.string().min(1, 'Source of funds is required'),
     destino_recursos: z.string().min(1, 'Destination of funds is required'),
-    volumen_transaccional: z.number().min(1, 'Transaction volume is required'),
-    operaciones_approximadas: z.number().optional(),
+    volumen_transaccional_mxn: z.number().min(1, 'Transaction volume is required'),
+    volumen_transaccional_crypto: z.number().min(1, 'Crypto transaction volume is required'),
+    moneda_crypto: z.string().min(1, 'Crypto currency is required'),
+    operaciones_approximadas: z.string().optional(),
+    nombre_institucion_clabe: z.string().min(1, 'CLABE institution name is required'),
     clabe: z.number().min(18, 'CLABE must be at least 18 digits'),
     wallet: z.string().optional(),
 })
@@ -57,17 +72,13 @@ export const companySchema = z.object({
 export const personSchema = z.object({
     fecha_de_nacimiento: z.date().min(1, 'Date of establishment is required'),
     rfc: z.string().min(1, 'RFC is required'),
+    pais: z.string().min(1, 'Country is required'),
     curp: z.string().min(1, 'CURP is required'),
     e_firma: z.string().optional(),
     no_sello: z.string().optional(),
-    direccion: z.string().min(1, 'Address is required'),
-    colonia: z.string(),
-    ciudad: z.string(),
-    estado: z.string(),
-    pais: z.string().min(1, 'Country is required'),
-    codigo_postal: z.string(),
-    direccion_completa: z.string().optional(),
-    comprobante_domicilio: z.file(),
+    direccion_fiscal: direccion,
+    direccion_fiscal_completa: z.string().optional(),
+    comprobante_domicilio_fiscal: z.file(),
     correo: z.email('Invalid email address'),
     nombre_representante_legal: z.string().min(1, 'Legal representative name is required'),
     apellido_representante_legal: z.string().min(1, 'Legal representative surname is required'),
@@ -91,13 +102,17 @@ export const personSchema = z.object({
         'lite'
     ]),
     nacionalidad: z.string(),
-    moral_fisica: z.boolean('Type must be boolean').optional(),
+    moral: z.boolean('Type must be boolean').optional(),
+    giro_mercantil: z.string().min(1, 'Business activity is required'),
     telefono: z.string(),
     origen_recursos: z.string(),
     destino_recursos: z.string(),
-    volumen_transaccional: z.number(),
-    operaciones_approximadas: z.number(),
-    clabe: z.number().optional(),
+    volumen_transaccional_mxn: z.number().min(1, 'Transaction volume is required'),
+    volumen_transaccional_crypto: z.number().min(1, 'Crypto transaction volume is required'),
+    moneda_crypto: z.string().min(1, 'Crypto currency is required'),
+    operaciones_approximadas: z.string(),
+    nombre_institucion_clabe: z.string().min(1, 'CLABE institution name is required'),
+    clabe: z.number().min(18, 'CLABE must be at least 18 digits'),
     wallet: z.string().optional(),
 })
 export type CompanyFormData = z.infer<typeof companySchema>;

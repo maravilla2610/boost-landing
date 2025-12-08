@@ -24,7 +24,6 @@ export async function login(prevState: { error?: string, message?: string } | nu
             }
         ])
         if (userError) {
-            console.log('User insert error:', userError)
             return { error: userError.message }
         }
 

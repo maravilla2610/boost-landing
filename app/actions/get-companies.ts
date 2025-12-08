@@ -11,7 +11,6 @@ export async function getCompanies(userId: number | null): Promise<Company[]> {
         .select('*')
         .eq('user_id', userId)
     if (error) {
-        console.error('Error fetching companies:', error)
         throw new Error('Error fetching companies')
     }    
 

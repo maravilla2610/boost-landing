@@ -1,1094 +1,186 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { z } from "zod";
-import { Building2, MapPin, FileText, Wallet, Save, Loader2, X } from "lucide-react";
+import React, { useMemo } from "react";
+import { Building2, MapPin, FileText, Wallet } from "lucide-react";
 import ToolbarExpandable from "@/components/ui/toolbar-expandable";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { companySchema, personSchema, CompanyFormData, PersonFormData } from "@/lib/entities/company";
 import { User } from "@/lib/entities/user";
-import { countries } from "@/lib/entities/countries";
-import { registerCompany } from "@/app/actions/register-company";
+import { useRegistrationForm } from "../../lib/hooks/useRegistrationForm";
+import { TypeStep } from "./steps/TypeStep";
+import { GeneralStep } from "./steps/GeneralStep";
+import { AddressStep } from "./steps/AddressStep";
+import { RepresentativeStep } from "./steps/RepresentativeStep";
+import { FinancialStep } from "./steps/FinancialStep";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+    COMPANY_GENERAL_FIELDS,
+    PERSON_GENERAL_FIELDS,
+    REPRESENTATIVE_FIELDS,
+} from "./constants";
 
-export default function RegistrationForm({ user, setShowRegistration, onSuccess }: { user: User | null, setShowRegistration: (show: boolean) => void, onSuccess?: () => void }) {
-    const [formData, setFormData] = useState<Partial<CompanyFormData & PersonFormData>>({
-        origen: "boost",
-        moral_fisica: false,
-        user_id: user?.id || undefined,
+interface RegistrationFormProps {
+    user: User | null;
+    setShowRegistration: (show: boolean) => void;
+    onSuccess?: () => void;
+}
+
+export default function RegistrationForm({
+    user,
+    setShowRegistration,
+    onSuccess,
+}: RegistrationFormProps) {
+    const {
+        formData,
+        errors,
+        isLoading,
+        sameAddress,
+        activeStep,
+        setActiveStep,
+        handleChange,
+        handleSelectChange,
+        handleDocumentTypeChange,
+        handleFileChange,
+        handleAddressChange,
+        handleNext,
+        handleBack,
+        handleSubmit,
+        handleSameAddressChange,
+    } = useRegistrationForm({
+        userId: user?.id,
+        onSuccess,
+        onClose: () => setShowRegistration(false),
     });
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const [isLoading, setIsLoading] = useState(false);
 
-    const [activeStep, setActiveStep] = useState<string | null>("type");
+    const isMoral = formData.moral;
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-    ) => {
-        const { name, value, type } = e.target;
-        let parsedValue: string | number | boolean | undefined | Date = value;
+    const steps = useMemo(() => {
+        const baseSteps = [
+            {
+                id: "type",
+                title: "Tipo de cuenta",
+                description: "Seleccione el tipo de cuenta",
+                icon: FileText,
+                content: (
+                    <TypeStep
+                        formData={formData}
+                        errors={errors}
+                        onSelectChange={handleSelectChange}
+                        onNext={() => handleNext("general", ["moral", "pais"])}
+                    />
+                ),
+            },
+            {
+                id: "general",
+                title: "Información General",
+                description: `Datos básicos ${isMoral ? "de la empresa" : "de la persona"}`,
+                icon: Building2,
+                content: (
+                    <GeneralStep
+                        formData={formData}
+                        errors={errors}
+                        onChange={handleChange}
+                        onFileChange={handleFileChange}
+                        onDocumentTypeChange={handleDocumentTypeChange}
+                        onBack={() => handleBack("type")}
+                        onNext={() =>
+                            handleNext(
+                                "address",
+                                isMoral
+                                    ? [...COMPANY_GENERAL_FIELDS]
+                                    : [...PERSON_GENERAL_FIELDS]
+                            )
+                        }
+                    />
+                ),
+            },
+            {
+                id: "address",
+                title: "Dirección",
+                description: `Dirección fiscal ${isMoral ? "de la empresa" : "de la persona"}`,
+                icon: MapPin,
+                content: (
+                    <AddressStep
+                        formData={formData}
+                        errors={errors}
+                        sameAddress={sameAddress}
+                        onAddressChange={handleAddressChange}
+                        onFileChange={handleFileChange}
+                        onSameAddressChange={handleSameAddressChange}
+                        onBack={() => handleBack("general")}
+                        onNext={() =>
+                            handleNext(
+                                isMoral ? "representative" : "financial",
+                                isMoral
+                                    ? [
+                                        "direccion_fiscal",
+                                        "comprobante_domicilio_fiscal",
+                                        "direccion_operativa",
+                                        ...(sameAddress ? [] : ["comprobante_domicilio_operativo"]),
+                                    ]
+                                    : ["direccion_fiscal", "comprobante_domicilio_fiscal"]
+                            )
+                        }
+                    />
+                ),
+            },
+        ];
 
-        if (type === "checkbox") {
-            parsedValue = (e.target as HTMLInputElement).checked;
-        } else if (type === "number") {
-            parsedValue = value === "" ? undefined : Number(value);
-        } else if (type === "date") {
-            parsedValue = value ? new Date(value) : undefined;
-        }
-
-        setFormData((prev) => ({
-            ...prev,
-            [name]: parsedValue,
-        }));
-
-        if (errors[name]) {
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors[name];
-                return newErrors;
+        if (isMoral) {
+            baseSteps.push({
+                id: "representative",
+                title: "Representante Legal",
+                description: "Datos del representante legal",
+                icon: FileText,
+                content: (
+                    <RepresentativeStep
+                        formData={formData}
+                        errors={errors}
+                        onChange={handleChange}
+                        onFileChange={handleFileChange}
+                        onDocumentTypeChange={handleDocumentTypeChange}
+                        onBack={() => handleBack("address")}
+                        onNext={() =>
+                            handleNext("financial", [...REPRESENTATIVE_FIELDS])
+                        }
+                    />
+                ),
             });
         }
-    };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, files } = e.target;
-        if (files && files.length > 0) {
-            setFormData((prev) => ({
-                ...prev,
-                [name]: files[0],
-            }));
-            if (errors[name]) {
-                setErrors((prev) => {
-                    const newErrors = { ...prev };
-                    delete newErrors[name];
-                    return newErrors;
-                });
-            }
-        }
-    };
-
-    const validateStep = (fields: string[]) => {
-        const newErrors: Record<string, string> = {};
-        let isValid = true;
-        const schema = formData.moral_fisica ? companySchema : personSchema;
-
-        fields.forEach((field) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const fieldSchema = (schema as any).pick({ [field]: true });
-            const result = fieldSchema.safeParse({ [field]: formData[field as keyof typeof formData] });
-
-            if (!result.success) {
-                const zodError = result.error;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const issues = zodError.issues || (zodError as any).errors || [];
-
-                if (Array.isArray(issues) && issues.length > 0) {
-                    const fieldError = issues.find(err =>
-                        err.path.length > 0 && err.path[0] === field
-                    ) || issues[0];
-
-                    if (fieldError) {
-                        newErrors[field] = fieldError.message;
-                        isValid = false;
-                    }
-                }
-            }
-        });
-
-        setErrors((prev) => {
-            const nextErrors = { ...prev };
-            fields.forEach(f => delete nextErrors[f]);
-            return { ...nextErrors, ...newErrors };
-        });
-        return isValid;
-    };
-
-    const handleNext = (
-        currentStepId: string,
-        nextStepId: string,
-        fieldsToValidate: string[]
-    ) => {
-        if (validateStep(fieldsToValidate)) {
-            setActiveStep(nextStepId);
-        }
-    };
-
-    const handleBack = (prevStepId: string) => {
-        setActiveStep(prevStepId);
-    };
-
-    const handleSubmit = async () => {
-        setIsLoading(true);
-        try {
-            console.log("Submitting form data:", formData);
-            const schema = formData.moral_fisica ? companySchema : personSchema;
-            schema.parse(formData);
-            console.log("Submitting form data:", formData);
-            await registerCompany(formData as CompanyFormData | PersonFormData);
-            alert("Company registered successfully!");
-            setFormData({});
-            setShowRegistration(false);
-            onSuccess?.();
-        } catch (error) {
-            if (error instanceof z.ZodError) {
-                console.log("Validation errors on submit:", error);
-                const newErrors: Record<string, string> = {};
-                const zodError = error;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const issues = zodError.issues || (zodError as any).errors || [];
-
-                issues.forEach((issue) => {
-                    if (issue.path.length > 0) {
-                        const fieldName = issue.path[0] as string;
-                        newErrors[fieldName] = issue.message;
-                    }
-                });
-
-                setErrors(newErrors);
-                alert("Please fix the errors before submitting.");
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const steps = [
-        {
-            id: "type",
-            title: "Tipo de cuenta",
-            description: "Seleccione el tipo de cuenta",
-            icon: FileText,
-            content: (
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="moral_fisica">Tipo de Cuenta</Label>
-                            <Select
-                                value={formData.moral_fisica ? "moral" : "fisica"}
-                                onValueChange={(value) =>
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        moral_fisica: value === "moral",
-                                    }))
-                                }
-                            >
-                                <SelectTrigger className={`w-full ${errors.moral_fisica ? "border-red-500" : ""}`}>
-                                    <SelectValue placeholder="Seleccione el tipo de cuenta" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="moral">Persona Moral</SelectItem>
-                                    <SelectItem value="fisica">Persona Física</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.moral_fisica && (
-                                <p className="text-xs text-red-500">{errors.moral_fisica}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="pais">Country</Label>
-                            <Select
-                                value={formData.pais || ""}
-                                onValueChange={(value) =>
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        pais: value,
-                                    }))
-                                }
-                            >
-                                <SelectTrigger className={`w-full ${errors.pais ? "border-red-500" : ""}`}>
-                                    <SelectValue placeholder="Seleccionar país" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {countries.map((country) => (
-                                        <SelectItem key={country.code} value={country.code}>
-                                            {country.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.pais && (
-                                <p className="text-xs text-red-500">Se necesita seleccionar un país</p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                        <Button
-                            onClick={() =>
-                                handleNext("type", "general", ["moral_fisica", "pais"])
-                            }
-                        >
-                            Siguiente
-                        </Button>
-                    </div>
-                </div>
-            )
-        },
-        {
-            id: "general",
-            title: "Información General",
-            description: "Datos básicos " + `${formData.moral_fisica ? "de la empresa" : "de la persona"}`,
-            icon: Building2,
-            content: (
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {formData.moral_fisica ? (
-                            <>
-                                <div className="space-y-2">
-                                    <Label htmlFor="nombre_compañia">Nombre de la Compañía</Label>
-                                    <Input
-                                        id="nombre_compañia"
-                                        name="nombre_compañia"
-                                        value={formData.nombre_compañia || ""}
-                                        onChange={handleChange}
-                                        className={errors.nombre_compañia ? "border-red-500" : ""}
-                                    />
-                                    {errors.nombre_compañia && (
-                                        <p className="text-xs text-red-500">
-                                            {errors.nombre_compañia}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="nombre_legal_compañia">Nombre Legal</Label>
-                                    <Input
-                                        id="nombre_legal_compañia"
-                                        name="nombre_legal_compañia"
-                                        value={formData.nombre_legal_compañia || ""}
-                                        onChange={handleChange}
-                                        className={errors.nombre_legal_compañia ? "border-red-500" : ""}
-                                    />
-                                    {errors.nombre_legal_compañia && (
-                                        <p className="text-xs text-red-500">{errors.nombre_legal_compañia}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fecha_de_constitucion">
-                                        Fecha de Constitución
-                                    </Label>
-                                    <Input
-                                        id="fecha_de_constitucion"
-                                        name="fecha_de_constitucion"
-                                        type="date"
-                                        value={
-                                            formData.fecha_de_constitucion instanceof Date
-                                                ? formData.fecha_de_constitucion
-                                                    .toISOString()
-                                                    .split("T")[0]
-                                                : ""
-                                        }
-                                        onChange={handleChange}
-                                        className={
-                                            errors.fecha_de_constitucion ? "border-red-500" : ""
-                                        }
-                                    />
-                                    {errors.fecha_de_constitucion && (
-                                        <p className="text-xs text-red-500">
-                                            {errors.fecha_de_constitucion}
-                                        </p>
-                                    )}
-                                </div>
-                                {formData.pais === "MX" ? (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="rfc_entidad_legal">RFC</Label>
-                                        <Input
-                                            id="rfc_entidad_legal"
-                                            name="rfc_entidad_legal"
-                                            value={formData.rfc_entidad_legal || ""}
-                                            onChange={handleChange}
-                                            className={errors.rfc_entidad_legal ? "border-red-500" : ""}
-                                        />
-                                        {errors.rfc_entidad_legal && (
-                                            <p className="text-xs text-red-500">{errors.rfc_entidad_legal}</p>
-                                        )}
-                                    </div>
-                                ) : null}
-                                <div className="space-y-2">
-                                    <Label htmlFor="correo">Correo Electrónico</Label>
-                                    <Input
-                                        id="correo"
-                                        name="correo"
-                                        type="email"
-                                        value={formData.correo || ""}
-                                        onChange={handleChange}
-                                        className={errors.correo ? "border-red-500" : ""}
-                                    />
-                                    {errors.correo && (
-                                        <p className="text-xs text-red-500">{errors.correo}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="giro_mercantil">Giro Mercantil</Label>
-                                    <Input
-                                        id="giro_mercantil"
-                                        name="giro_mercantil"
-                                        value={formData.giro_mercantil || ""}
-                                        onChange={handleChange}
-                                        className={`${errors.giro_mercantil ? "border-red-500" : ""}`}
-                                    />
-                                    {errors.giro_mercantil && (
-                                        <p className="text-xs text-red-500">{errors.giro_mercantil}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="csf">Constancia de Situación Fiscal</Label>
-                                    <Input
-                                        id="csf"
-                                        name="csf"
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        className={errors.csf ? "border-red-500" : ""}
-                                    />
-                                    {errors.csf && (
-                                        <p className="text-xs text-red-500">{errors.csf}</p>
-                                    )}
-                                    {formData.csf && (
-                                        <p className="text-sm text-muted-foreground">
-                                            Archivo seleccionado: {(formData.csf as File).name}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="acta_constitutiva">Acta Constitutiva</Label>
-                                    <Input
-                                        id="acta_constitutiva"
-                                        name="acta_constitutiva"
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        className={errors.acta_constitutiva ? "border-red-500" : ""}
-                                    />
-                                    {errors.acta_constitutiva && (
-                                        <p className="text-xs text-red-500">{errors.acta_constitutiva}</p>
-                                    )}
-                                    {formData.acta_constitutiva && (
-                                        <p className="text-sm text-muted-foreground">
-                                            Archivo seleccionado: {(formData.acta_constitutiva as File).name}
-                                        </p>
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="space-y-2">
-                                    <Label htmlFor="nombre_representante_legal">Nombre</Label>
-                                    <Input
-                                        id="nombre_representante_legal"
-                                        name="nombre_representante_legal"
-                                        value={formData.nombre_representante_legal || ""}
-                                        onChange={handleChange}
-                                        className={errors.nombre_representante_legal ? "border-red-500" : ""}
-                                    />
-                                    {errors.nombre_representante_legal && (
-                                        <p className="text-xs text-red-500">{errors.nombre_representante_legal}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="apellido_representante_legal">Apellido</Label>
-                                    <Input
-                                        id="apellido_representante_legal"
-                                        name="apellido_representante_legal"
-                                        value={formData.apellido_representante_legal || ""}
-                                        onChange={handleChange}
-                                        className={errors.apellido_representante_legal ? "border-red-500" : ""}
-                                    />
-                                    {errors.apellido_representante_legal && (
-                                        <p className="text-xs text-red-500">{errors.apellido_representante_legal}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="fecha_de_nacimiento">
-                                        Fecha de Nacimiento
-                                    </Label>
-                                    <Input
-                                        id="fecha_de_nacimiento"
-                                        name="fecha_de_nacimiento"
-                                        type="date"
-                                        value={
-                                            formData.fecha_de_nacimiento instanceof Date
-                                                ? formData.fecha_de_nacimiento
-                                                    .toISOString()
-                                                    .split("T")[0]
-                                                : ""
-                                        }
-                                        onChange={handleChange}
-                                        className={
-                                            errors.fecha_de_nacimiento ? "border-red-500" : ""
-                                        }
-                                    />
-                                    {errors.fecha_de_nacimiento && (
-                                        <p className="text-xs text-red-500">
-                                            {errors.fecha_de_nacimiento}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="tipo_documento">Tipo de Documento</Label>
-                                    <Select
-                                        value={formData.tipo_documento || ""}
-                                        onValueChange={(value) =>
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                tipo_documento: value as "pasaporte" | "ine" | "licencia" | "cartilla_militar",
-                                            }))
-                                        }
-                                    >
-                                        <SelectTrigger className={`w-full ${errors.tipo_documento ? "border-red-500" : ""}`}>
-                                            <SelectValue placeholder="Seleccionar..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="pasaporte">Pasaporte</SelectItem>
-                                            <SelectItem value="ine">INE</SelectItem>
-                                            <SelectItem value="licencia">Licencia</SelectItem>
-                                            <SelectItem value="cartilla_militar">Cartilla Militar</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.tipo_documento && (
-                                        <p className="text-xs text-red-500">{errors.tipo_documento}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="documento">Legal Document</Label>
-                                    <Input
-                                        id="documento"
-                                        name="documento"
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        className={errors.documento ? "border-red-500" : ""}
-                                    />
-                                    {errors.documento && (
-                                        <p className="text-xs text-red-500">{errors.documento}</p>
-                                    )}
-                                    {formData.documento && (
-                                        <p className="text-sm text-muted-foreground">
-                                            Archivo seleccionado: {(formData.documento as File).name}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="numero_documento">Número de Documento</Label>
-                                    <Input
-                                        id="numero_documento"
-                                        name="numero_documento"
-                                        type="number"
-                                        value={formData.numero_documento || ""}
-                                        onChange={handleChange}
-                                        className={errors.numero_documento ? "border-red-500" : ""}
-                                    />
-                                    {errors.numero_documento && (
-                                        <p className="text-xs text-red-500">{errors.numero_documento}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="curp">CURP</Label>
-                                    <Input
-                                        id="curp"
-                                        name="curp"
-                                        value={formData.curp || ""}
-                                        onChange={handleChange}
-                                        className={errors.curp ? "border-red-500" : ""}
-                                    />
-                                    {errors.curp && (
-                                        <p className="text-xs text-red-500">{errors.curp}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="rfc">RFC</Label>
-                                    <Input
-                                        id="rfc"
-                                        name="rfc"
-                                        value={formData.rfc || ""}
-                                        onChange={handleChange}
-                                        className={errors.rfc ? "border-red-500" : ""}
-                                    />
-                                    {errors.rfc && (
-                                        <p className="text-xs text-red-500">{errors.rfc}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="correo">Correo Electrónico</Label>
-                                    <Input
-                                        id="correo"
-                                        name="correo"
-                                        type="email"
-                                        value={formData.correo || ""}
-                                        onChange={handleChange}
-                                        className={errors.correo ? "border-red-500" : ""}
-                                    />
-                                    {errors.correo && (
-                                        <p className="text-xs text-red-500">{errors.correo}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="telefono">Teléfono</Label>
-                                    <Input
-                                        id="telefono"
-                                        name="telefono"
-                                        type="tel"
-                                        value={formData.telefono || ""}
-                                        onChange={handleChange}
-                                        className={errors.telefono ? "border-red-500" : ""}
-                                    />
-                                    {errors.telefono && (
-                                        <p className="text-xs text-red-500">{errors.telefono}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="nacionalidad">Nacionalidad</Label>
-                                    <Input
-                                        id="nacionalidad"
-                                        name="nacionalidad"
-                                        type="text"
-                                        value={formData.nacionalidad || ""}
-                                        onChange={handleChange}
-                                        className={errors.nacionalidad ? "border-red-500" : ""}
-                                    />
-                                    {errors.nacionalidad && (
-                                        <p className="text-xs text-red-500">{errors.nacionalidad}</p>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="csf">Constancia de Situación Fiscal</Label>
-                                    <Input
-                                        id="csf"
-                                        name="csf"
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        className={errors.csf ? "border-red-500" : ""}
-                                    />
-                                    {errors.csf && (
-                                        <p className="text-xs text-red-500">{errors.csf}</p>
-                                    )}
-                                    {formData.csf && (
-                                        <p className="text-sm text-muted-foreground">
-                                            Archivo seleccionado: {(formData.csf as File).name}
-                                        </p>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                    <div className="flex justify-between mt-4">
-                        <Button variant="outline" onClick={() => handleBack("type")}>
-                            Atrás
-                        </Button>
-                        <Button
-                            onClick={() =>
-                                handleNext(
-                                    "general",
-                                    "address",
-                                    formData.moral_fisica
-                                        ? [
-                                            "nombre_compañia",
-                                            "nombre_legal_compañia",
-                                            "fecha_de_constitucion",
-                                            "acta_constitutiva",
-                                            "rfc_entidad_legal",
-                                            "correo",
-                                            "giro_mercantil",
-                                            "csf"
-                                        ]
-                                        : [
-                                            "nombre_representante_legal",
-                                            "apellido_representante_legal",
-                                            "tipo_documento",
-                                            "documento",
-                                            "numero_documento",
-                                            "fecha_de_nacimiento",
-                                            "csf",
-                                            "curp",
-                                            "rfc",
-                                            "correo",
-                                            "telefono",
-                                            "nacionalidad",
-                                        ]
-                                )
-                            }
-                        >
-                            Siguiente
-                        </Button>
-                    </div>
-                </div>
-            ),
-        },
-        {
-            id: "address",
-            title: "Dirección",
-            description: "Dirección fiscal " + `${formData.moral_fisica ? "de la empresa" : "de la persona"}`,
-            icon: MapPin,
-            content: (
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="direccion">Calle y Número</Label>
-                        <Input
-                            id="direccion"
-                            name="direccion"
-                            value={formData.direccion || ""}
-                            onChange={handleChange}
-                            className={errors.direccion ? "border-red-500" : ""}
-                        />
-                        {errors.direccion && (
-                            <p className="text-xs text-red-500">{errors.direccion}</p>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="colonia">Colonia</Label>
-                            <Input
-                                id="colonia"
-                                name="colonia"
-                                value={formData.colonia || ""}
-                                onChange={handleChange}
-                                className={errors.colonia ? "border-red-500" : ""}
-                            />
-                            {errors.colonia && (
-                                <p className="text-xs text-red-500">{errors.colonia}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="codigo_postal">Código Postal</Label>
-                            <Input
-                                id="codigo_postal"
-                                name="codigo_postal"
-                                value={formData.codigo_postal || ""}
-                                onChange={handleChange}
-                                className={errors.codigo_postal ? "border-red-500" : ""}
-                            />
-                            {errors.codigo_postal && (
-                                <p className="text-xs text-red-500">{errors.codigo_postal}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="ciudad">Ciudad</Label>
-                            <Input
-                                id="ciudad"
-                                name="ciudad"
-                                value={formData.ciudad || ""}
-                                onChange={handleChange}
-                                className={errors.ciudad ? "border-red-500" : ""}
-                            />
-                            {errors.ciudad && (
-                                <p className="text-xs text-red-500">{errors.ciudad}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="estado">Estado</Label>
-                            <Input
-                                id="estado"
-                                name="estado"
-                                value={formData.estado || ""}
-                                onChange={handleChange}
-                                className={errors.estado ? "border-red-500" : ""}
-                            />
-                            {errors.estado && (
-                                <p className="text-xs text-red-500">{errors.estado}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="pais">País</Label>
-                            <Select
-                                value={formData.pais || ""}
-                                onValueChange={(value) =>
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        pais: value,
-                                    }))
-                                }
-                            >
-                                <SelectTrigger className={`w-full ${errors.pais ? "border-red-500" : ""}`}>
-                                    <SelectValue placeholder="Seleccionar país" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {countries.map((country) => (
-                                        <SelectItem key={country.code} value={country.code}>
-                                            {country.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {errors.pais && (
-                                <p className="text-xs text-red-500">Se necesita seleccionar un país</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="comprobante_domicilio">
-                                Comprobante de Domicilio
-                            </Label>
-                            <Input
-                                id="comprobante_domicilio"
-                                name="comprobante_domicilio"
-                                type="file"
-                                onChange={handleFileChange}
-                                className={errors.comprobante_domicilio ? "border-red-500" : ""}
-                            />
-                            {errors.comprobante_domicilio && (
-                                <p className="text-xs text-red-500">
-                                    {errors.comprobante_domicilio}
-                                </p>
-                            )}
-                            {formData.comprobante_domicilio && (
-                                <p className="text-sm text-muted-foreground">
-                                    Archivo seleccionado: {(formData.comprobante_domicilio as File).name}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex justify-between mt-4">
-                        <Button variant="outline" onClick={() => handleBack("general")}>
-                            Atrás
-                        </Button>
-                        <Button onClick={() =>
-                            handleNext("address",
-                                formData.moral_fisica ? "representative" : "financial",
-                                formData.moral_fisica ?
-                                    [
-                                        "direccion",
-                                        "colonia",
-                                        "codigo_postal",
-                                        "ciudad",
-                                        "estado",
-                                        "pais",
-                                        "comprobante_domicilio"
-                                    ] : [
-                                        "direccion",
-                                        "colonia",
-                                        "codigo_postal",
-                                        "ciudad",
-                                        "estado",
-                                        "pais",
-                                        "comprobante_domicilio"
-                                    ]
-                            )}>
-                            Siguiente
-                        </Button>
-                    </div>
-                </div>
-            ),
-        },
-        {
-            id: "representative",
-            title: "Representante Legal",
-            description: "Datos del representante legal",
-            icon: FileText,
-            content: (
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="nombre_representante_legal">Nombre(s)</Label>
-                            <Input
-                                id="nombre_representante_legal"
-                                name="nombre_representante_legal"
-                                value={formData.nombre_representante_legal || ""}
-                                onChange={handleChange}
-                                className={
-                                    errors.nombre_representante_legal ? "border-red-500" : ""
-                                }
-                            />
-                            {errors.nombre_representante_legal && (
-                                <p className="text-xs text-red-500">
-                                    {errors.nombre_representante_legal}
-                                </p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="apellido_representante_legal">Apellidos</Label>
-                            <Input
-                                id="apellido_representante_legal"
-                                name="apellido_representante_legal"
-                                value={formData.apellido_representante_legal || ""}
-                                onChange={handleChange}
-                                className={
-                                    errors.apellido_representante_legal ? "border-red-500" : ""
-                                }
-                            />
-                            {errors.apellido_representante_legal && (
-                                <p className="text-xs text-red-500">
-                                    {errors.apellido_representante_legal}
-                                </p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="fecha_de_nacimiento">
-                                Fecha de Nacimiento
-                            </Label>
-                            <Input
-                                id="fecha_de_nacimiento"
-                                name="fecha_de_nacimiento"
-                                type="date"
-                                value={
-                                    formData.fecha_de_nacimiento instanceof Date
-                                        ? formData.fecha_de_nacimiento
-                                            .toISOString()
-                                            .split("T")[0]
-                                        : ""
-                                }
-                                onChange={handleChange}
-                                className={
-                                    errors.fecha_de_nacimiento ? "border-red-500" : ""
-                                }
-                            />
-                            {errors.fecha_de_nacimiento && (
-                                <p className="text-xs text-red-500">
-                                    {errors.fecha_de_nacimiento}
-                                </p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="tipo_documento">Tipo de Documento</Label>
-                            <Select
-                                value={formData.tipo_documento || ""}
-                                onValueChange={(value) =>
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        tipo_documento: value as "pasaporte" | "ine" | "licencia" | "cartilla_militar",
-                                    }))
-                                }
-                            >
-                                <SelectTrigger className={`w-full ${errors.tipo_documento ? "border-red-500" : ""}`}>
-                                    <SelectValue placeholder="Seleccionar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="pasaporte">Pasaporte</SelectItem>
-                                    <SelectItem value="ine">INE</SelectItem>
-                                    <SelectItem value="licencia">Licencia</SelectItem>
-                                    <SelectItem value="cartilla_militar">Cartilla Militar</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.tipo_documento && (
-                                <p className="text-xs text-red-500">{errors.tipo_documento}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="documento">Legal Document</Label>
-                            <Input
-                                id="documento"
-                                name="documento"
-                                type="file"
-                                onChange={handleFileChange}
-                                className={errors.documento ? "border-red-500" : ""}
-                            />
-                            {errors.documento && (
-                                <p className="text-xs text-red-500">{errors.documento}</p>
-                            )}
-                            {formData.documento && (
-                                <p className="text-sm text-muted-foreground">
-                                    Archivo seleccionado: {(formData.documento as File).name}
-                                </p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="numero_documento">Número de Documento</Label>
-                            <Input
-                                id="numero_documento"
-                                name="numero_documento"
-                                type="number"
-                                value={formData.numero_documento || ""}
-                                onChange={handleChange}
-                                className={errors.numero_documento ? "border-red-500" : ""}
-                            />
-                            {errors.numero_documento && (
-                                <p className="text-xs text-red-500">{errors.numero_documento}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="curp">CURP</Label>
-                            <Input
-                                id="curp"
-                                name="curp"
-                                value={formData.curp || ""}
-                                onChange={handleChange}
-                                className={errors.curp ? "border-red-500" : ""}
-                            />
-                            {errors.curp && (
-                                <p className="text-xs text-red-500">{errors.curp}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="rfc">RFC</Label>
-                            <Input
-                                id="rfc"
-                                name="rfc"
-                                value={formData.rfc || ""}
-                                onChange={handleChange}
-                                className={errors.rfc ? "border-red-500" : ""}
-                            />
-                            {errors.rfc && (
-                                <p className="text-xs text-red-500">{errors.rfc}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="nacionalidad">Nacionalidad</Label>
-                            <Input
-                                id="nacionalidad"
-                                name="nacionalidad"
-                                value={formData.nacionalidad || ""}
-                                onChange={handleChange}
-                                className={errors.nacionalidad ? "border-red-500" : ""}
-                            />
-                            {errors.nacionalidad && (
-                                <p className="text-xs text-red-500">{errors.nacionalidad}</p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="poder">Poder Notarial</Label>
-                        <Input
-                            id="poder"
-                            name="poder"
-                            type="file"
-                            onChange={handleFileChange}
-                            className={errors.poder ? "border-red-500" : ""}
-                        />
-                        {errors.poder && (
-                            <p className="text-xs text-red-500">{errors.poder}</p>
-                        )}
-                        {formData.poder && (
-                            <p className="text-sm text-muted-foreground">
-                                Archivo seleccionado: {(formData.poder as File).name}
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex justify-between mt-4">
-                        <Button variant="outline" onClick={() => handleBack("address")}>
-                            Atrás
-                        </Button>
-                        <Button
-                            onClick={() =>
-                                handleNext("representative", "financial", [
-                                    "nombre_representante_legal",
-                                    "apellido_representante_legal",
-                                ])
-                            }
-                        >
-                            Siguiente
-                        </Button>
-                    </div>
-                </div>
-            ),
-        },
-        {
+        baseSteps.push({
             id: "financial",
             title: "Financiero",
             description: "Información financiera y operativa",
             icon: Wallet,
             content: (
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="clabe">CLABE</Label>
-                            <Input
-                                id="clabe"
-                                name="clabe"
-                                type="number"
-                                value={formData.clabe || ""}
-                                onChange={handleChange}
-                                className={errors.clabe ? "border-red-500" : ""}
-                            />
-                            {errors.clabe && (
-                                <p className="text-xs text-red-500">{errors.clabe}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="wallet">Wallet Address</Label>
-                            <Input
-                                id="wallet"
-                                name="wallet"
-                                value={formData.wallet || ""}
-                                onChange={handleChange}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="origen_recursos">Origen de Recursos</Label>
-                            <Input
-                                id="origen_recursos"
-                                name="origen_recursos"
-                                value={formData.origen_recursos || ""}
-                                onChange={handleChange}
-                                className={errors.origen_recursos ? "border-red-500" : ""}
-                            />
-                            {errors.origen_recursos && (
-                                <p className="text-xs text-red-500">{errors.origen_recursos}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="destino_recursos">Destino de Recursos</Label>
-                            <Input
-                                id="destino_recursos"
-                                name="destino_recursos"
-                                value={formData.destino_recursos || ""}
-                                onChange={handleChange}
-                                className={errors.destino_recursos ? "border-red-500" : ""}
-                            />
-                            {errors.destino_recursos && (
-                                <p className="text-xs text-red-500">{errors.destino_recursos}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="volumen_transaccional">
-                                Volumen Transaccional
-                            </Label>
-                            <Input
-                                id="volumen_transaccional"
-                                name="volumen_transaccional"
-                                type="number"
-                                value={formData.volumen_transaccional || ""}
-                                onChange={handleChange}
-                                className={errors.volumen_transaccional ? "border-red-500" : ""}
-                            />
-                            {errors.volumen_transaccional && (
-                                <p className="text-xs text-red-500">{errors.volumen_transaccional}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="operaciones_approximadas">
-                                Operaciones Approximadas Mensuales
-                            </Label>
-                            <Input
-                                id="operaciones_approximadas"
-                                name="operaciones_approximadas"
-                                type="number"
-                                value={formData.operaciones_approximadas || ""}
-                                onChange={handleChange}
-                                className={errors.operaciones_approximadas ? "border-red-500" : ""}
-                            />
-                            {errors.operaciones_approximadas && (
-                                <p className="text-xs text-red-500">{errors.operaciones_approximadas}</p>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex justify-between mt-4">
-                        <Button variant="outline" onClick={() => handleBack(formData.moral_fisica ? "representative" : "address")}>
-                            Atrás
-                        </Button>
-                        <Button onClick={handleSubmit} className="w-full md:w-auto" disabled={isLoading}>
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Registrando...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Registrar Compañía
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
+                <FinancialStep
+                    formData={formData}
+                    errors={errors}
+                    isLoading={isLoading}
+                    onChange={handleChange}
+                    onSelectChange={handleSelectChange}
+                    onBack={() => handleBack(isMoral ? "representative" : "address")}
+                    onSubmit={handleSubmit}
+                />
             ),
-        },
-    ];
+        });
 
-    if (!formData.moral_fisica) {
-        steps.splice(3, 1);
-    }
+        return baseSteps;
+    }, [
+        formData,
+        errors,
+        isLoading,
+        sameAddress,
+        isMoral,
+        handleChange,
+        handleSelectChange,
+        handleDocumentTypeChange,
+        handleFileChange,
+        handleAddressChange,
+        handleSameAddressChange,
+        handleNext,
+        handleBack,
+        handleSubmit,
+    ]);
 
     return (
         <div className="w-full max-w-4xl mx-auto p-4">

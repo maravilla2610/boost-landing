@@ -12,7 +12,7 @@ import { Icon3dRotate, IconMoneybag, IconShield } from "@tabler/icons-react";
     {
       title: "Flexibility",
       content: (
-        <Card>
+        <Card className="p-4">
           <CardTitle><Icon3dRotate className="w-10 h-10 color-primary"/></CardTitle>
           <CardDescription>
             Trade 50+ cryptocurrencies with flexible settlement options. Whether you need spot, forward contracts, or customized structured products, we adapt to your unique trading requirements and timeline.
@@ -23,7 +23,7 @@ import { Icon3dRotate, IconMoneybag, IconShield } from "@tabler/icons-react";
     {
       title: "Deep Liquidity",
       content: (
-        <Card>
+        <Card className="p-4">
           <CardTitle><IconMoneybag className="w-10 h-10"/></CardTitle>
           <CardDescription>
             Execute trades from $100K to $100M+ with minimal slippage. Our extensive network of liquidity providers ensures you get the best prices for institutional-sized orders, 24/7/365.
@@ -34,7 +34,7 @@ import { Icon3dRotate, IconMoneybag, IconShield } from "@tabler/icons-react";
     {
       title: "Bank-Grade Security",
       content: (
-        <Card>
+        <Card className="p-4">
           <CardTitle><IconShield className="w-10 h-10"/></CardTitle>
           <CardDescription>
             Your assets are protected by multi-signature cold storage, insurance coverage, and SOC 2 compliance. We partner with top-tier custodians and employ military-grade encryption for all transactions.
